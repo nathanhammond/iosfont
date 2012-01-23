@@ -13,6 +13,7 @@ Installing fonts that iOS doesn't know what to do with may put your iOS device i
 - Python 2
 - fontforge (http://fontforge.sourceforge.net/) (```brew install fontforge```)
 - paramiko (http://www.lag.net/paramiko/) (```easy_install paramiko```)
+- plutil (Preinstalled on OS X)
 - Jailbroken iOS Device (http://www.iclarified.com/jailbreak/)
 - OpenSSH installed on your iOS device (Anyone know a good link?)
 - Netatalk installed on your iOS device (Anyone know a good link?)
@@ -55,7 +56,8 @@ Updates the iosfont script.
 
 ## Miscellaneous
 - This script was tested with Google's new Android font, Roboto. You can download Roboto from here: http://www.fontsquirrel.com/fonts/roboto
-- This is the first time I've written more than ten lines of Python code. Any Pythonistas out there may send me pull requests to show me how to do things in a more Pythonic way.
+- This script has only been tested on OS X 10.6.8 and iOS 5.0.1. YMMV.
+- This is the first time I've written more than ten lines of Python code in one sitting. Any Pythonistas out there may send me pull requests to show me how to do things in a more Pythonic way.
 - Information sourced from these fine places:
   - http://www.enjoygadgets.com/blog/gadgets/2011/01/06/how-to-add-fonts-to-your-iphone/
   - http://www.typophile.com/node/81351
