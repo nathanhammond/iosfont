@@ -1,0 +1,257 @@
+#!/usr/bin/env fontforge -lang=py
+
+# dictmerge.py from https://gist.github.com/776748
+# Discussion here: http://appdelegateinc.com/blog/2011/01/12/merge-deeply-nested-dicts-in-python/
+import collections
+
+def quacks_like_dict(object):
+    """Check if object is dict-like"""
+    return isinstance(object, collections.Mapping)
+    
+def merge(a, b):
+    """Merge two deep dicts non-destructively
+    
+    Uses a stack to avoid maximum recursion depth exceptions
+    
+    >>> a = {'a': 1, 'b': {1: 1, 2: 2}, 'd': 6}
+    >>> b = {'c': 3, 'b': {2: 7}, 'd': {'z': [1, 2, 3]}}
+    >>> c = merge(a, b)
+    >>> from pprint import pprint; pprint(c)
+    {'a': 1, 'b': {1: 1, 2: 7}, 'c': 3, 'd': {'z': [1, 2, 3]}}
+    """
+    assert quacks_like_dict(a), quacks_like_dict(b)
+    dst = a.copy()
+    
+    stack = [(dst, b)]
+    while stack:
+        current_dst, current_src = stack.pop()
+        for key in current_src:
+            if key not in current_dst:
+                current_dst[key] = current_src[key]
+            else:
+                if quacks_like_dict(current_src[key]) and quacks_like_dict(current_dst[key]) :
+                    stack.append((current_dst[key], current_src[key]))
+                else:
+                    current_dst[key] = current_src[key]
+    return dst
+
+# iosfont
+
+import sys, os.path, fontforge, paramiko, plistlib, xml, re
+from subprocess import call
+
+# Use fontforge to parse the font file.
+def fontattributes(font):
+	attributes = {'Family':'','SubFamily':'','Fullname':'','PostScriptName':'','Location':'','Filename':''}
+
+	# TODO: Split file name from file location.
+	attributes['Location'] = font
+	attributes['Filename'] = os.path.basename(font)
+
+	font = fontforge.open(font)
+
+	nametable = font.sfnt_names
+
+	# I live in a US-centric world.
+	def f(x): return x[0] == 'English (US)'
+	
+	# And I only care about a few attributes.
+	def g(x): return x[1] in attributes
+
+	nametable = filter(f, nametable)
+	nametable = filter(g, nametable)
+
+	for tableentry in nametable:
+		attributes[tableentry[1]] = tableentry[2]
+
+	attributes['SubFamily'] = processsubfamily(attributes['SubFamily'])
+	return attributes
+
+# Shoehorn the family style into Apple's definitions.
+def processsubfamily(subfamily):
+	subfamily = subfamily.lower()
+
+	bold = ['bold','heavy','black','negreta']
+	italic = ['italic','oblique','obl','slanted']
+	
+	hasbold = 0
+	hasitalic = 0
+
+	for keyword in bold:
+		if keyword in subfamily: hasbold = 1
+	
+	for keyword in italic:
+		if keyword in subfamily: hasitalic = 1
+
+	if hasbold and hasitalic:
+		return 'Bold-Italic'
+	elif hasbold:
+		return 'Bold'
+	elif hasitalic:
+		return 'Italic'
+	else:
+		return 'Plain'
+
+def nextsubfamilyindex(subfamilylist, subfamily):
+	def f(x): return x.find(subfamily+'_') == 0 or x == subfamily
+	subfamilylist = filter(f, subfamilylist)
+	return len(subfamilylist)
+
+# Driver.
+def install(hostname, fonts):
+	# Some magic names.
+	directories = {'ConfStorage':'/System/Library/Fonts/','FontStorage':'/System/Library/Fonts/Cache/'}
+	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist']
+
+	# Set up an ssh connection.
+	client = paramiko.SSHClient()
+	client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+	client.connect(hostname, username='root')
+	sftp = client.open_sftp()
+
+	# Process each font.
+	for i in range(0,len(fonts)):
+		fonts[i] = dict(fontattributes(fonts[i]).items() + directories.items())
+	
+	# TODO: Prevent the installation of fonts that will muck up the system.
+	
+	# Get the plist files from the phone.
+	for plist in plists:
+		sftp.get(directories['ConfStorage'] + plist, plist)
+
+	# One more, see if we've got our own fonts loaded.
+	try:
+		sftp.get(directories['ConfStorage'] + 'Custom.plist', 'Custom.plist')
+	except IOError:
+		call(['touch','Custom.plist'])
+
+	# Load the existing custom fonts plist.
+	try:
+		custom = plistlib.readPlist('Custom.plist')
+	except (IOError, xml.parsers.expat.ExpatError):
+		# Create the custom "plist" for this (set of) font(s).
+		custom = {'Names':{},'TraitMappings':{}}
+
+	# Add these fonts to the plist.
+	for font in fonts:
+		custom['Names'][font['Fullname']] = font['FontStorage']+font['Filename']
+		custom['Names'][font['PostScriptName']] = font['FontStorage']+font['Filename']
+		
+		# Make sure the font's family exists in the traitmaps.
+		if not font['Family'] in custom['TraitMappings']:
+			custom['TraitMappings'][font['Family']] = {}
+		
+		if font['SubFamily'] in custom['TraitMappings'][font['Family']]:
+			# Get the existing keys set for the family, add in the SubFamily.
+			existing = custom['TraitMappings'][font['Family']].keys()
+			nextindex = nextsubfamilyindex(existing, font['SubFamily'])
+			custom['TraitMappings'][font['Family']][font['SubFamily'] + '_' + str(nextindex)] = font['PostScriptName']
+		else:
+			custom['TraitMappings'][font['Family']][font['SubFamily']] = font['PostScriptName']
+
+	plistlib.writePlist(custom, 'Custom.plist')
+	
+	# Update the plists
+	for plist in plists:
+		# Convert the plist to XML.
+		call(["plutil", "-convert", "xml1", plist])
+		
+		# Read the file in.
+		contents = plistlib.readPlist(plist)
+		
+		# TODO: Make merge smarter.
+		
+		# Merge the default plist with our Custom.plist
+		contents = merge(custom, contents)
+		
+		# Write the changes back to the file.
+		plistlib.writePlist(contents, plist)
+
+		# Convert the plist back to binary.
+		call(["plutil", "-convert", "binary1", plist])
+
+	# Put the font on the phone.
+	for font in fonts:
+		print 'Copy font {Location} to phone.'.format(**font)
+		sftp.put(font['Location'], directories['FontStorage']+font['Filename'])
+
+	# Put the updated plists on the phone.
+	for plist in plists:
+		print 'Copy plist {0} to phone.'.format(plist)
+		sftp.put(plist, directories['ConfStorage']+plist)
+	
+	# One more, store our Custom.plist on the phone.
+	print 'Copy plist {0} to phone.'.format('Custom.plist')
+	sftp.put('Custom.plist', directories['ConfStorage']+'Custom.plist')
+
+	# Clean up after ourselves.
+	sftp.close()
+
+	# Reboot the phone to enable the font.
+	print 'Reboot the phone to enable the fonts.'
+	client.exec_command('reboot');
+
+	# Close the SSH connection.
+	client.close()
+
+	return
+	
+def backup(hostname,fonts): return
+def restore(hostname,fonts): return
+def revert(hostname,fonts): return
+def uninstall(hostname,fonts): return
+def update(): return
+
+def main():
+	commands = ['install','backup','restore','revert','uninstall','update']
+
+	# Command option is required.
+	if not (len(sys.argv) > 1):
+		print 'Argument command is required.'
+		return
+
+	# Check for valid command.
+	if sys.argv[1] in commands:
+		command = sys.argv[1]
+	else:
+		print 'Argument command is required.'
+		return
+
+	# Check to see if hostname is required.
+	if command != 'update' and not (len(sys.argv) > 2):
+		print 'Argument hostname is required.'
+		return
+
+	# Set the hostname.
+	if command != 'update':
+		hostname = sys.argv[2]
+
+	# Check for valid hostname.
+	# I know that this will match 999.999.999.999 and I don't care. This is just to force name-based addressing.
+	if command != 'update' and re.match('^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', hostname):
+		print 'You must use a name-based address for your phone.'
+		return
+
+	# Set the fonts array.
+	if len(sys.argv) > 3:
+		fonts = sys.argv[3:]
+	else:
+		fonts = []
+
+	if command == 'install':
+		install(hostname, fonts)
+	elif command == 'backup':
+		backup(hostname, fonts)
+	elif command == 'restore':
+		restore(hostname, fonts)
+	elif command == 'revert':
+		revert(hostname, fonts)
+	elif command == 'uninstall':
+		uninstall(hostname, fonts)
+	elif command == 'update':
+		update()
+
+	return
+
+# Run it!
+main()
