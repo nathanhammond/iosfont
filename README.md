@@ -1,4 +1,4 @@
-# iosfont
+# iosfont v0.0.1
 **THIS SCRIPT IS NOT YET COMPLETE. IT DOES NOT YET DO EVERYTHING THE README ADVERTISES!**
 
 iosfont is a script designed to make it easy to install and uninstall fonts on iOS devices.
@@ -53,6 +53,10 @@ Remove the font Roboto.ttf from your iPhone.
 ```iosfont update```
 
 Updates the iosfont script.
+
+```iosfont version```
+
+Returns the version of the iosfont script you are running.
 
 ## Miscellaneous
 - This script was tested with Google's new Android font, Roboto. You can download Roboto from here: http://www.fontsquirrel.com/fonts/roboto
