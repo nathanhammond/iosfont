@@ -34,7 +34,7 @@ Saves the current iOS font config files in ~/.iosfont/
 Restores the default iOS font config files from ~/.iosfont/
 
 ```iosfont revert [hostname]```
-Restores the most recent iOS font config files from ~/.iosfont/
+Reverts the the most recent install operation, copying iOS font config files from ~/.iosfont/
 
 ```iosfont install [hostname] Roboto.ttf```
 Install the font Roboto.ttf to your iPhone.
