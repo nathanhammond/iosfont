@@ -41,7 +41,7 @@ import sys, os.path, fontforge, paramiko, plistlib, xml, re, urllib, stat
 from subprocess import call
 
 def version(output=1):
-	version = '0.0.1'
+	version = '0.0.2'
 	if output:
 		print 'iosfont v{0}'.format(version)
 	return version
