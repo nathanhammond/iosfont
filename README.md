@@ -25,38 +25,30 @@ Installing fonts that iOS doesn't know what to do with may put your iOS device i
     mv iosfont /usr/local/bin/
 
 ## Usage
-You should use the .local address assigned to your phone (via Netatalk) as the hostname.
+*You should use the .local address assigned to your phone (via Netatalk) as the hostname.*
 
 ```iosfont backup [hostname]```
-
 Saves the current iOS font config files in ~/.iosfont/
 
 ```iosfont restore [hostname]```
-
 Restores the default iOS font config files from ~/.iosfont/
 
 ```iosfont revert [hostname]```
-
 Restores the most recent iOS font config files from ~/.iosfont/
 
 ```iosfont install [hostname] Roboto.ttf```
-
 Install the font Roboto.ttf to your iPhone.
 
 ```iosfont install [hostname] Roboto*.ttf```
-
 Shell expansion works.
 
 ```iosfont uninstall [hostname] Roboto.ttf```
-
 Remove the font Roboto.ttf from your iPhone.
 
 ```iosfont update```
-
 Updates the iosfont script.
 
 ```iosfont version```
-
 Returns the version of the iosfont script you are running.
 
 ## Miscellaneous
