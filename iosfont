@@ -306,7 +306,7 @@ def compareversion(client,server):
 
 # Download the most recent version of iosfont
 def update():
-	serverversion = urllib.urlopen('https://github.com/nathanhammond/iosfont/raw/master/VERSION').readline()
+	serverversion = urllib.urlopen('https://raw.github.com/nathanhammond/iosfont/master/VERSION').readline()
 
 	update = compareversion(version(0),serverversion)
 

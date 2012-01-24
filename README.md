@@ -20,7 +20,7 @@ Installing fonts that iOS doesn't know what to do with may put your iOS device i
 - Your machine's SSH key stored on your iOS device (Anyone know a good link?)
 
 ## Installation
-    wget https://github.com/nathanhammond/iosfont/raw/master/iosfont
+    wget https://raw.github.com/nathanhammond/iosfont/master/VERSION
     chmod +x iosfont
     mv iosfont /usr/local/bin/
 
@@ -40,7 +40,7 @@ Reverts the the most recent install operation, copying iOS font config files fro
 Install the font Roboto.ttf to your iPhone.
 
 ```iosfont install [hostname] Roboto*.ttf```
-Shell expansion works.
+Shell expansion/multiple arguments work.
 
 ```iosfont uninstall [hostname] Roboto.ttf```
 Remove the font Roboto.ttf from your iPhone.
