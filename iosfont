@@ -122,7 +122,8 @@ def getconfigfiles(hostname, targetdir):
 	client, sftp = createconnection(hostname)
 
 	# Make the folder if it doesn't exist.
-	os.makedirs(targetdir,0755)
+	if not os.path.exists(targetdir):
+		os.makedirs(targetdir,0755)
 
 	# Get the plist files from the phone.
 	for plist in plists:
@@ -178,6 +179,10 @@ def rebootphone(hostname):
 	return
 
 def install(hostname, fonts):
+	# Some magic names.
+	directories = {'ConfStorage':'/System/Library/Fonts/','FontStorage':'/System/Library/Fonts/Cache/'}
+	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist']
+
 	# Before we get started, give ourselves a lifeline.
 	backup(hostname)
 
