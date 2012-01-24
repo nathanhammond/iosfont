@@ -37,7 +37,7 @@ def merge(a, b):
 
 # iosfont
 
-import sys, os.path, fontforge, paramiko, plistlib, xml, re, urllib, stat
+import sys, os.path, fontforge, paramiko, plistlib, xml, re, urllib, stat, time
 from subprocess import call
 
 def version(output=1):
@@ -105,6 +105,9 @@ def nextsubfamilyindex(subfamilylist, subfamily):
 
 # Driver.
 def install(hostname, fonts):
+	# Before we get started, give ourselves a lifeline.
+	backup(hostname)
+
 	# Some magic names.
 	directories = {'ConfStorage':'/System/Library/Fonts/','FontStorage':'/System/Library/Fonts/Cache/'}
 	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist']
@@ -115,6 +118,10 @@ def install(hostname, fonts):
 	client.connect(hostname, username='root')
 	sftp = client.open_sftp()
 
+	# Create our working directory
+	workingdir = os.path.expanduser('~/.iosfont/'+hostname+'/current/')
+	os.makedirs(workingdir,0755)
+
 	# Process each font.
 	for i in range(0,len(fonts)):
 		fonts[i] = dict(fontattributes(fonts[i]).items() + directories.items())
@@ -123,17 +130,17 @@ def install(hostname, fonts):
 	
 	# Get the plist files from the phone.
 	for plist in plists:
-		sftp.get(directories['ConfStorage'] + plist, plist)
+		sftp.get(directories['ConfStorage'] + plist, workingdir + plist)
 
 	# One more, see if we've got our own fonts loaded.
 	try:
-		sftp.get(directories['ConfStorage'] + 'Custom.plist', 'Custom.plist')
+		sftp.get(directories['ConfStorage'] + 'Custom.plist', workingdir + 'Custom.plist')
 	except IOError:
 		call(['touch','Custom.plist'])
 
 	# Load the existing custom fonts plist.
 	try:
-		custom = plistlib.readPlist('Custom.plist')
+		custom = plistlib.readPlist(workingdir + 'Custom.plist')
 	except (IOError, xml.parsers.expat.ExpatError):
 		# Create the custom "plist" for this (set of) font(s).
 		custom = {'Names':{},'TraitMappings':{}}
@@ -155,15 +162,15 @@ def install(hostname, fonts):
 		else:
 			custom['TraitMappings'][font['Family']][font['SubFamily']] = font['PostScriptName']
 
-	plistlib.writePlist(custom, 'Custom.plist')
+	plistlib.writePlist(custom, workingdir + 'Custom.plist')
 	
 	# Update the plists
 	for plist in plists:
 		# Convert the plist to XML.
-		call(["plutil", "-convert", "xml1", plist])
+		call(["plutil", "-convert", "xml1", workingdir + plist])
 		
 		# Read the file in.
-		contents = plistlib.readPlist(plist)
+		contents = plistlib.readPlist(workingdir + plist)
 		
 		# TODO: Make merge smarter.
 		
@@ -171,11 +178,11 @@ def install(hostname, fonts):
 		contents = merge(custom, contents)
 		
 		# Write the changes back to the file.
-		plistlib.writePlist(contents, plist)
+		plistlib.writePlist(contents, workingdir + plist)
 
 		# Convert the plist back to binary.
-		call(["plutil", "-convert", "binary1", plist])
-
+		call(["plutil", "-convert", "binary1", workingdir + plist])
+	
 	# Put the font on the phone.
 	for font in fonts:
 		print 'Copy font {Location} to phone.'.format(**font)
@@ -183,12 +190,12 @@ def install(hostname, fonts):
 
 	# Put the updated plists on the phone.
 	for plist in plists:
-		print 'Copy plist {0} to phone.'.format(plist)
-		sftp.put(plist, directories['ConfStorage']+plist)
+		print 'Copy plist {0} to phone.'.format(workingdir + plist)
+		sftp.put(workingdir + plist, directories['ConfStorage']+plist)
 	
 	# One more, store our Custom.plist on the phone.
 	print 'Copy plist {0} to phone.'.format('Custom.plist')
-	sftp.put('Custom.plist', directories['ConfStorage']+'Custom.plist')
+	sftp.put(workingdir + 'Custom.plist', directories['ConfStorage']+'Custom.plist')
 
 	# Clean up after ourselves.
 	sftp.close()
@@ -202,7 +209,38 @@ def install(hostname, fonts):
 
 	return
 	
-def backup(hostname,fonts): return
+def backup(hostname):
+	# Some magic names.
+	directories = {'ConfStorage':'/System/Library/Fonts/','FontStorage':'/System/Library/Fonts/Cache/'}
+	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist']
+
+	# Set up an ssh connection.
+	client = paramiko.SSHClient()
+	client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+	client.connect(hostname, username='root')
+	sftp = client.open_sftp()
+
+	# Create the backup folder.
+	timestamp = time.time()
+	backupdir = os.path.expanduser('~/.iosfont/'+hostname+'/'+str(timestamp)+'/')
+	os.makedirs(backupdir,0755)
+
+	# Get the plist files from the phone.
+	for plist in plists:
+		sftp.get(directories['ConfStorage'] + plist, backupdir + plist)
+
+	# One more, see if we've got our own fonts loaded.
+	try:
+		sftp.get(directories['ConfStorage'] + 'Custom.plist', backupdir + 'Custom.plist')
+	except IOError:
+		call(['touch','Custom.plist'])
+
+	# Clean up after ourselves.
+	sftp.close()
+	client.close()
+
+	return
+
 def restore(hostname,fonts): return
 def revert(hostname,fonts): return
 def uninstall(hostname,fonts): return
@@ -274,14 +312,14 @@ def main():
 
 	if command == 'install':
 		install(hostname, fonts)
-	elif command == 'backup':
-		backup(hostname, fonts)
-	elif command == 'restore':
-		restore(hostname, fonts)
-	elif command == 'revert':
-		revert(hostname, fonts)
 	elif command == 'uninstall':
 		uninstall(hostname, fonts)
+	elif command == 'backup':
+		backup(hostname)
+	elif command == 'restore':
+		restore(hostname)
+	elif command == 'revert':
+		revert(hostname)
 	elif command == 'update':
 		update()
 	elif command == 'version':
