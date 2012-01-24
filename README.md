@@ -21,6 +21,7 @@ Installing fonts that iOS doesn't know what to do with may put your iOS device i
 
 ## Installation
     wget https://github.com/nathanhammond/iosfont/raw/master/iosfont
+    chmod +x iosfont
     mv iosfont /usr/local/bin/
 
 ## Usage
