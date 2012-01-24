@@ -42,7 +42,7 @@ from subprocess import call
 from datetime import datetime
 
 def version(output=1):
-	version = '0.0.2'
+	version = '0.0.3'
 	if output:
 		print 'iosfont v{0}'.format(version)
 	return version
