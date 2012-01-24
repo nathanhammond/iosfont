@@ -312,7 +312,7 @@ def update():
 
 	if update:
 		os.remove('/usr/local/bin/iosfont')
-		urllib.urlretrieve('https://github.com/nathanhammond/iosfont/raw/master/iosfont', '/usr/local/bin/iosfont')
+		urllib.urlretrieve('https://raw.github.com/nathanhammond/iosfont/master/iosfont', '/usr/local/bin/iosfont')
 		os.chmod('/usr/local/bin/iosfont', stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 		print 'You were running iosfont v{0}. You have been updated to iosfont v{1}'.format(version(0),serverversion)
 	else:

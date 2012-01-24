@@ -20,7 +20,7 @@ Installing fonts that iOS doesn't know what to do with may put your iOS device i
 - Your machine's SSH key stored on your iOS device (Anyone know a good link?)
 
 ## Installation
-    wget https://raw.github.com/nathanhammond/iosfont/master/VERSION
+    wget https://raw.github.com/nathanhammond/iosfont/master/iosfont
     chmod +x iosfont
     mv iosfont /usr/local/bin/
 
