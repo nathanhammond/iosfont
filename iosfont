@@ -25,7 +25,7 @@ def fontattributes(font):
 
 	# I live in a US-centric world.
 	def f(x): return x[0] == 'English (US)'
-	
+
 	# And I only care about a few attributes.
 	def g(x): return x[1] in attributes
 
@@ -44,13 +44,13 @@ def processsubfamily(subfamily):
 
 	bold = ['bold','heavy','black','negreta']
 	italic = ['italic','oblique','obl','slanted']
-	
+
 	hasbold = 0
 	hasitalic = 0
 
 	for keyword in bold:
 		if keyword in subfamily: hasbold = True
-	
+
 	for keyword in italic:
 		if keyword in subfamily: hasitalic = True
 
@@ -74,7 +74,7 @@ def createconnection(hostname):
 	client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 	client.connect(hostname, username='root')
 	sftp = client.open_sftp()
-	
+
 	return client, sftp
 
 # Get config files from the phone.
@@ -111,12 +111,12 @@ def putconfigfiles(hostname, sourcedir):
 	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist']
 
 	client, sftp = createconnection(hostname)
-	
+
 	# Put the updated plists on the phone.
 	for plist in plists:
 		print 'Copy plist {0} to phone.'.format(sourcedir + plist)
 		sftp.put(sourcedir + plist, directories['ConfStorage']+plist)
-	
+
 	# One more, store our Custom.plist on the phone.
 	print 'Copy plist {0} to phone.'.format('Custom.plist')
 	sftp.put(sourcedir + 'Custom.plist', directories['ConfStorage']+'Custom.plist')
@@ -152,7 +152,7 @@ def keyinplists(key, plists, path):
 def install(hostname, fonts):
 	# Some magic names.
 	directories = {'ConfStorage':'/System/Library/Fonts/','FontStorage':'/System/Library/Fonts/Cache/'}
-	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist','Custom.plist']	
+	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist','Custom.plist']
 	plistcontents = []
 
 	# Before we get started, give ourselves a lifeline.
@@ -164,7 +164,7 @@ def install(hostname, fonts):
 	# Process each font.
 	for i in range(0,len(fonts)):
 		fonts[i] = dict(fontattributes(fonts[i]).items() + directories.items())
-	
+
 	# TODO: Prevent the installation of fonts that will muck up the system.
 
 	# Create our working directory
@@ -173,14 +173,14 @@ def install(hostname, fonts):
 		os.makedirs(workingdir,0755)
 
 	getconfigfiles(hostname, workingdir)
-	
+
 	fontstoinstall = 0
-	
+
 	# Load the plists.
 	for plist in plists:
 		# Convert the plist to XML.
 		call(["plutil", "-convert", "xml1", workingdir + plist])
-		
+
 		# Read the file in.
 		try:
 			plistcontents.append(plistlib.readPlist(workingdir + plist))
@@ -221,11 +221,11 @@ def install(hostname, fonts):
 			# 3. Set the value in each plist.
 			for plist in plistcontents:
 				plist['TraitMappings'][font['Family']][font['SubFamily'] + '_' + str(nextindex)] = font['PostScriptName']
-		
+
 		# Put the font on the phone.
 		print 'Copy font {Location} to phone.'.format(**font)
 		sftp.put(font['Location'], directories['FontStorage']+font['Filename'])
-		
+
 		# Keep track.
 		fontstoinstall += 1
 
@@ -241,7 +241,7 @@ def install(hostname, fonts):
 		rebootphone(hostname)
 
 	return
-	
+
 def backup(hostname):
 	# Create the backup folder.
 	timestamp = time.time()
@@ -278,7 +278,7 @@ def restore(hostname):
 def uninstall(hostname,fonts):
 	# Some magic names.
 	directories = {'ConfStorage':'/System/Library/Fonts/','FontStorage':'/System/Library/Fonts/Cache/'}
-	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist','Custom.plist']	
+	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist','Custom.plist']
 	plistcontents = []
 
 	# Before we get started, give ourselves a lifeline.
@@ -290,21 +290,21 @@ def uninstall(hostname,fonts):
 	# Process each font, but truly we only care about PostScriptName. Everything else is going to come from Custom.plist
 	for i in range(0,len(fonts)):
 		fonts[i] = dict(fontattributes(fonts[i]).items() + directories.items())
-	
+
 	# Create our working directory
 	workingdir = os.path.expanduser('~/.iosfont/'+hostname+'/current/')
 	if not os.path.exists(workingdir):
 		os.makedirs(workingdir,0755)
 
 	getconfigfiles(hostname, workingdir)
-	
+
 	fontstoremove = 0
-	
+
 	# Load the plists.
 	for plist in plists:
 		# Convert the plist to XML.
 		call(["plutil", "-convert", "xml1", workingdir + plist])
-		
+
 		# Read the file in.
 		try:
 			plistcontents.append(plistlib.readPlist(workingdir + plist))
@@ -346,7 +346,7 @@ def compareversion(client,server):
 	def f(x): return int(x)
 	client = map(f, client.split('.'))
 	server = map(f, server.split('.'))
-	
+
 	for i in range(3):
 		if client[i] < server[i]:
 			return True
@@ -367,7 +367,7 @@ def update():
 	else:
 		print 'You are already running the most recent version of iosfont.'
 
-	return	
+	return
 
 def main():
 	commands = ['install','backup','restore','revert','uninstall','update','version']
@@ -390,7 +390,7 @@ def main():
 		if not (len(sys.argv) > 2):
 			print 'Argument hostname is required.'
 			return
-		
+
 		# Set the hostname.
 		hostname = sys.argv[2]
 
