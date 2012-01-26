@@ -5,7 +5,7 @@ import sys, os.path, fontforge, paramiko, plistlib, xml, re, urllib, stat, time
 from subprocess import call
 from datetime import datetime
 
-def version(output=1):
+def version(output=True):
 	version = '0.0.4'
 	if output:
 		print 'iosfont v{0}'.format(version)
@@ -49,10 +49,10 @@ def processsubfamily(subfamily):
 	hasitalic = 0
 
 	for keyword in bold:
-		if keyword in subfamily: hasbold = 1
+		if keyword in subfamily: hasbold = True
 	
 	for keyword in italic:
-		if keyword in subfamily: hasitalic = 1
+		if keyword in subfamily: hasitalic = True
 
 	if hasbold and hasitalic:
 		return 'Bold-Italic'
@@ -283,21 +283,21 @@ def compareversion(client,server):
 	
 	for i in range(2):
 		if client[i] < server[i]:
-			return 1
+			return True
 
-	return 0
+	return False
 
 # Download the most recent version of iosfont
 def update():
 	serverversion = urllib.urlopen('https://raw.github.com/nathanhammond/iosfont/master/VERSION').readline()
 
-	update = compareversion(version(0),serverversion)
+	update = compareversion(version(False),serverversion)
 
 	if update:
 		os.remove('/usr/local/bin/iosfont')
 		urllib.urlretrieve('https://raw.github.com/nathanhammond/iosfont/master/iosfont', '/usr/local/bin/iosfont')
 		os.chmod('/usr/local/bin/iosfont', stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-		print 'You were running iosfont v{0}. You have been updated to iosfont v{1}'.format(version(0),serverversion)
+		print 'You were running iosfont v{0}. You have been updated to iosfont v{1}'.format(version(False),serverversion)
 	else:
 		print 'You are already running the most recent version of iosfont.'
 
