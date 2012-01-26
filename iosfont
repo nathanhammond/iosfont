@@ -1,42 +1,6 @@
 #!/usr/bin/env fontforge -lang=py
 
-# dictmerge.py from https://gist.github.com/776748
-# Discussion here: http://appdelegateinc.com/blog/2011/01/12/merge-deeply-nested-dicts-in-python/
-import collections
-
-def quacks_like_dict(object):
-    """Check if object is dict-like"""
-    return isinstance(object, collections.Mapping)
-    
-def merge(a, b):
-    """Merge two deep dicts non-destructively
-    
-    Uses a stack to avoid maximum recursion depth exceptions
-    
-    >>> a = {'a': 1, 'b': {1: 1, 2: 2}, 'd': 6}
-    >>> b = {'c': 3, 'b': {2: 7}, 'd': {'z': [1, 2, 3]}}
-    >>> c = merge(a, b)
-    >>> from pprint import pprint; pprint(c)
-    {'a': 1, 'b': {1: 1, 2: 7}, 'c': 3, 'd': {'z': [1, 2, 3]}}
-    """
-    assert quacks_like_dict(a), quacks_like_dict(b)
-    dst = a.copy()
-    
-    stack = [(dst, b)]
-    while stack:
-        current_dst, current_src = stack.pop()
-        for key in current_src:
-            if key not in current_dst:
-                current_dst[key] = current_src[key]
-            else:
-                if quacks_like_dict(current_src[key]) and quacks_like_dict(current_dst[key]) :
-                    stack.append((current_dst[key], current_src[key]))
-                else:
-                    current_dst[key] = current_src[key]
-    return dst
-
-# iosfont
-
+# iosfont v0.0.3
 import sys, os.path, fontforge, paramiko, plistlib, xml, re, urllib, stat, time
 from subprocess import call
 from datetime import datetime
@@ -178,10 +142,18 @@ def rebootphone(hostname):
 
 	return
 
+def keyinplists(key, plists, path):
+	for plist in plists:
+		if key in path(plist):
+			return True
+	else:
+		return False
+
 def install(hostname, fonts):
 	# Some magic names.
 	directories = {'ConfStorage':'/System/Library/Fonts/','FontStorage':'/System/Library/Fonts/Cache/'}
-	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist']
+	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist','Custom.plist']	
+	plistcontents = []
 
 	# Before we get started, give ourselves a lifeline.
 	backup(hostname)
@@ -201,59 +173,70 @@ def install(hostname, fonts):
 		os.makedirs(workingdir,0755)
 
 	getconfigfiles(hostname, workingdir)
-
-	# Load the existing custom fonts plist.
-	try:
-		custom = plistlib.readPlist(workingdir + 'Custom.plist')
-	except (IOError, xml.parsers.expat.ExpatError):
-		# Create the custom "plist" for this (set of) font(s).
-		custom = {'Names':{},'TraitMappings':{}}
-
-	# Add these fonts to the plist.
-	for font in fonts:
-		custom['Names'][font['Fullname']] = font['FontStorage']+font['Filename']
-		custom['Names'][font['PostScriptName']] = font['FontStorage']+font['Filename']
-		
-		# Make sure the font's family exists in the traitmaps.
-		if not font['Family'] in custom['TraitMappings']:
-			custom['TraitMappings'][font['Family']] = {}
-		
-		if font['SubFamily'] in custom['TraitMappings'][font['Family']]:
-			# Get the existing keys set for the family, add in the SubFamily.
-			existing = custom['TraitMappings'][font['Family']].keys()
-			nextindex = nextsubfamilyindex(existing, font['SubFamily'])
-			custom['TraitMappings'][font['Family']][font['SubFamily'] + '_' + str(nextindex)] = font['PostScriptName']
-		else:
-			custom['TraitMappings'][font['Family']][font['SubFamily']] = font['PostScriptName']
-
-	plistlib.writePlist(custom, workingdir + 'Custom.plist')
 	
-	# Update the plists
+	fontstoinstall = 0
+	
+	# Load the plists.
 	for plist in plists:
 		# Convert the plist to XML.
 		call(["plutil", "-convert", "xml1", workingdir + plist])
 		
 		# Read the file in.
-		contents = plistlib.readPlist(workingdir + plist)
+		try:
+			plistcontents.append(plistlib.readPlist(workingdir + plist))
+		except (IOError, xml.parsers.expat.ExpatError):
+			plistcontents.append({'Names':{},'TraitMappings':{}})
+
+	# Add the fonts to the plists.
+	for font in fonts:
+		if keyinplists(font['PostScriptName'], plistcontents, lambda plist: plist['Names'].keys()):
+			print 'Font {0} is already installed. Skipping.'.format(font['Fullname'])
+			continue
+
+		for plist in plistcontents:
+			plist['Names'][font['Fullname']] = font['FontStorage']+font['Filename']
+			plist['Names'][font['PostScriptName']] = font['FontStorage']+font['Filename']
+
+		# Make sure the font's family exists in the traitmaps.
+		for plist in plistcontents:
+			if not font['Family'] in plist['TraitMappings']:
+				plist['TraitMappings'][font['Family']] = {}
+
+		# Identify whether the subfamily is already defined.
+		if not keyinplists(font['SubFamily'], plistcontents, lambda plist: plist['TraitMappings'][font['Family']]):
+			# This is easy, it doesn't exist, just add it.
+			for plist in plistcontents:
+				plist['TraitMappings'][font['Family']][font['SubFamily']] = font['PostScriptName']
+		else:
+			# 1. Identify what already exists in each plist.
+			subfamilykeys = []
+			for plist in plistcontents:
+				subfamilykeys.extend(plist['TraitMappings'][font['Family']].keys())
+
+			subfamilykeys = set(subfamilykeys)
+
+			# 2. Identify what is next: max([existing]) + 1
+			nextindex = nextsubfamilyindex(subfamilykeys, font['SubFamily'])
+
+			# 3. Set the value in each plist.
+			for plist in plistcontents:
+				plist['TraitMappings'][font['Family']][font['SubFamily'] + '_' + str(nextindex)] = font['PostScriptName']
 		
-		# TODO: Make merge smarter.
-		
-		# Merge the default plist with our Custom.plist
-		contents = merge(custom, contents)
-		
-		# Write the changes back to the file.
-		plistlib.writePlist(contents, workingdir + plist)
+		# Put the font on the phone.
+		print 'Copy font {Location} to phone.'.format(**font)
+		sftp.put(font['Location'], directories['FontStorage']+font['Filename'])
+		fontstoinstall += 1
+
+	# Save the plists.
+	for plist in plists:
+		plistlib.writePlist(plistcontents.pop(0), workingdir + plist)
 
 		# Convert the plist back to binary.
 		call(["plutil", "-convert", "binary1", workingdir + plist])
-	
-	# Put the font on the phone.
-	for font in fonts:
-		print 'Copy font {Location} to phone.'.format(**font)
-		sftp.put(font['Location'], directories['FontStorage']+font['Filename'])
 
-	putconfigfiles(hostname, workingdir)
-	# rebootphone(hostname)
+	if fontstoinstall > 0:
+		putconfigfiles(hostname, workingdir)
+		rebootphone(hostname)
 
 	return
 	
