@@ -15,7 +15,7 @@ def version(output=True):
 def fontattributes(font):
 	attributes = {'Family':'','SubFamily':'','Fullname':'','PostScriptName':'','Location':'','Filename':''}
 
-	# TODO: Split file name from file location.
+	# Split file name from file location.
 	attributes['Location'] = font
 	attributes['Filename'] = os.path.basename(font)
 
@@ -225,6 +225,8 @@ def install(hostname, fonts):
 		# Put the font on the phone.
 		print 'Copy font {Location} to phone.'.format(**font)
 		sftp.put(font['Location'], directories['FontStorage']+font['Filename'])
+		
+		# Keep track.
 		fontstoinstall += 1
 
 	# Save the plists.
@@ -273,7 +275,71 @@ def restore(hostname):
 
 	return
 
-def uninstall(hostname,fonts): return
+def uninstall(hostname,fonts):
+	# Some magic names.
+	directories = {'ConfStorage':'/System/Library/Fonts/','FontStorage':'/System/Library/Fonts/Cache/'}
+	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist','Custom.plist']	
+	plistcontents = []
+
+	# Before we get started, give ourselves a lifeline.
+	backup(hostname)
+
+	# Get our needed connection to the phone.
+	client, sftp = createconnection(hostname)
+
+	# Process each font, but truly we only care about PostScriptName. Everything else is going to come from Custom.plist
+	for i in range(0,len(fonts)):
+		fonts[i] = dict(fontattributes(fonts[i]).items() + directories.items())
+	
+	# Create our working directory
+	workingdir = os.path.expanduser('~/.iosfont/'+hostname+'/current/')
+	if not os.path.exists(workingdir):
+		os.makedirs(workingdir,0755)
+
+	getconfigfiles(hostname, workingdir)
+	
+	fontstoremove = 0
+	
+	# Load the plists.
+	for plist in plists:
+		# Convert the plist to XML.
+		call(["plutil", "-convert", "xml1", workingdir + plist])
+		
+		# Read the file in.
+		try:
+			plistcontents.append(plistlib.readPlist(workingdir + plist))
+		except (IOError, xml.parsers.expat.ExpatError):
+			plistcontents.append({'Names':{},'TraitMappings':{}})
+
+	# Remove the font from the plists.
+	for font in fonts:
+
+		# TODO: All processing against Custom.plist
+		# 1. Check to see if the font is installed inside of Custom.plist. If not, continue.
+		# 2. Set font['Filename'] = basename(plist['Names'][font['PostScriptName]])
+		# 3. Use font['Filename'] to find and remove the entry in the plist['Names'][?fullname].
+		# 4. Use the font['PostScriptName'] to find and remove the entry in leaf nodes of plist['TraitMappings'][?family][?subfamily].
+		# 5. Smartly collapse numeric indices on SubFamily types.
+
+		# Remove the font from the phone.
+		print 'Remove font {Location} from phone.'.format(**font)
+		sftp.remove(directories['FontStorage']+font['Filename'])
+
+		# Keep track.
+		fontstoremove += 1
+
+	# Save the plists.
+	for plist in plists:
+		plistlib.writePlist(plistcontents.pop(0), workingdir + plist)
+
+		# Convert the plist back to binary.
+		call(["plutil", "-convert", "binary1", workingdir + plist])
+
+	if fontstoremove > 0:
+		putconfigfiles(hostname, workingdir)
+		rebootphone(hostname)
+
+	return
 
 def compareversion(client,server):
 
