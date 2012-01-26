@@ -1,12 +1,12 @@
 #!/usr/bin/env fontforge -lang=py
 
-# iosfont v0.0.4
+# iosfont v0.0.5
 import sys, os.path, fontforge, paramiko, plistlib, xml, re, urllib, stat, time
 from subprocess import call
 from datetime import datetime
 
 def version(output=True):
-	version = '0.0.4'
+	version = '0.0.5'
 	if output:
 		print 'iosfont v{0}'.format(version)
 	return version
