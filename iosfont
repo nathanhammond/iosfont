@@ -281,7 +281,7 @@ def compareversion(client,server):
 	client = map(f, client.split('.'))
 	server = map(f, server.split('.'))
 	
-	for i in range(2):
+	for i in range(3):
 		if client[i] < server[i]:
 			return True
 
