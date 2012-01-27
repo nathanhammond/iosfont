@@ -276,6 +276,9 @@ def restore(hostname):
 	return
 
 def uninstall(hostname,fonts):
+	# We can't trust the font specified to be identical.
+	# The best we can do is key off of one particular attribute (PostScriptName) and remove that font from the phone instead.
+
 	# Some magic names.
 	directories = {'ConfStorage':'/System/Library/Fonts/','FontStorage':'/System/Library/Fonts/Cache/'}
 	plists = ['CGFontCacheReduced_H_.plist','CGFontCacheReduced_UH_.plist','CGFontCacheFull_H_.plist','CGFontCacheFull_UH_.plist','Custom.plist']
@@ -314,12 +317,47 @@ def uninstall(hostname,fonts):
 	# Remove the font from the plists.
 	for font in fonts:
 
-		# TODO: All processing against Custom.plist
-		# 1. Check to see if the font is installed inside of Custom.plist. If not, continue.
-		# 2. Set font['Filename'] = basename(plist['Names'][font['PostScriptName]])
-		# 3. Use font['Filename'] to find and remove the entry in the plist['Names'][?fullname].
-		# 4. Use the font['PostScriptName'] to find and remove the entry in leaf nodes of plist['TraitMappings'][?family][?subfamily].
-		# 5. Smartly collapse numeric indices on SubFamily types.
+		# See if the font is installed. If not, skip it.
+		if not font['PostScriptName'] in plistcontents[4]['Names']:
+			print 'Font {0} is not installed. Skipping.'.format(font['Fullname'])
+			continue
+
+		# Get the second part of our two-piece key.
+		font['Filename'] = os.path.basename(plistcontents[4]['Names'][font['PostScriptName']])
+
+		# Use font['Filename'] to find the pair of entries in plist['Names']
+		for key in plistcontents[4]['Names'].keys():
+			if plistcontents[4]['Names'][key] == (directories['FontStorage'] + font['Filename']) and key != font['PostScriptName']:
+				# Store the content to delete later.
+				font['Fullname'] = key
+
+		# Find the font['PostScriptName'] to find and remove the entry in leaf nodes of plist['TraitMappings'][?family][?subfamily].
+		for family in plistcontents[4]['TraitMappings'].keys():
+			for subfamily in plistcontents[4]['TraitMappings'][family].keys():
+				if plistcontents[4]['TraitMappings'][family][subfamily] == font['PostScriptName']:
+					font['Family'] = family
+					font['SubFamily'] = subfamily
+
+		# Okay, font is now defined fully based upon the information in Custom.plist, let's remove it.
+		for plist in plistcontents:
+			del plist['Names'][font['PostScriptName']]
+			del plist['Names'][font['Fullname']]
+
+			subfamilylist = plist['TraitMappings'][font['Family']].keys()
+			subfamilylist = filter(lambda x: x.find(font['SubFamily']+'_') == 0, subfamilylist)
+
+			if len(plist['TraitMappings'][font['Family']]) == 1:
+				# We have only one subfamily in this font['Family']. Remove the whole family.
+				del plist['TraitMappings'][font['Family']]
+			elif len(subfamilylist) > 0:
+				# We have duplicate subfamilies in this font['Family']
+				# TODO: Smartly collapse numeric indices on the duplicate SubFamily types.
+				print 'Special case!'
+			else:
+				# No duplicates, and there are still others in the family.
+				del plist['TraitMappings'][font['Family']][font['SubFamily']]
+
+			print plist
 
 		# Remove the font from the phone.
 		print 'Remove font {Location} from phone.'.format(**font)
