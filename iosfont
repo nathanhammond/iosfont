@@ -1,7 +1,7 @@
 #!/usr/bin/env fontforge -lang=py
 
 # iosfont v0.1.0
-import sys, os.path, fontforge, paramiko, plistlib, xml, re, urllib, stat, time
+import sys, os.path, fontforge, paramiko, plistlib, xml, re, urllib, time
 from subprocess import call
 from datetime import datetime
 
@@ -133,8 +133,8 @@ def rebootphone(hostname):
 	# Don't need sftp.
 	sftp.close()
 
-	# Reboot the phone to enable the font.
-	print 'Reboot the phone to enable the fonts.'
+	# Reboot the phone to update the fonts.
+	print 'Reboot the phone to update the fonts.'
 	client.exec_command('reboot');
 
 	# Clean up after ourselves.
@@ -353,19 +353,19 @@ def uninstall(hostname,fonts):
 			elif len(subfamilylist) > 1:
 				# We have duplicate subfamilies in this font['Family']
 
-				# We're still going to delete the specified font SubFamily.
-				del plist['TraitMappings'][font['Family']][font['SubFamily']]
-
-				# In case this happens to be the 0th index.
 				if font['SubFamilyIndex'] == '':
+					# In case this happens to be the 0th index.
 					font['SubFamilyIndex'] = 0
+				else:
+					# Still need to convert it to an integer.
+					font['SubFamilyIndex'] = int(font['SubFamilyIndex'])
 
-				# But now we have to smartly collapse numeric indices on the duplicate SubFamily types.
+				# Smartly collapse numeric indices on (top of) the duplicate SubFamily types.
 				for i in range(font['SubFamilyIndex'],len(subfamilylist)-1):
-					plist['TraitMappings'][font['Family']][font['RootSubFamily']+('', '_'+i)[i!=0]] = plist['TraitMappings'][font['Family']][font['RootSubFamily']+'_'+(i+1)]
+					plist['TraitMappings'][font['Family']][font['RootSubFamily']+('', '_'+str(i))[i!=0]] = plist['TraitMappings'][font['Family']][font['RootSubFamily']+'_'+str(i+1)]
 
 				# And delete the top of the range.
-				del plist['TraitMappings'][font['Family']][font['RootSubFamily']+'_'+len(subfamilylist)-1]
+				del plist['TraitMappings'][font['Family']][font['RootSubFamily']+'_'+str(len(subfamilylist)-1)]
 
 			else:
 				# No duplicates, and there are still others in the family.
@@ -412,7 +412,7 @@ def update():
 	if update:
 		os.remove('/usr/local/bin/iosfont')
 		urllib.urlretrieve('https://raw.github.com/nathanhammond/iosfont/master/iosfont', '/usr/local/bin/iosfont')
-		os.chmod('/usr/local/bin/iosfont', stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+		os.chmod('/usr/local/bin/iosfont', 0755)
 		print 'You were running iosfont v{0}. You have been updated to iosfont v{1}'.format(version(False),serverversion)
 	else:
 		print 'You are already running the most recent version of iosfont.'
