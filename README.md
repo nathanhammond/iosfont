@@ -1,4 +1,4 @@
-# iosfont v0.0.5
+# iosfont v0.1.0
 
 iosfont is a script designed to make it easy to install and uninstall fonts on iOS devices.
 
