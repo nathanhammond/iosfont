@@ -337,6 +337,7 @@ def uninstall(hostname,fonts):
 				if plistcontents[4]['TraitMappings'][family][subfamily] == font['PostScriptName']:
 					font['Family'] = family
 					font['SubFamily'] = subfamily
+					font['RootSubFamily'],a,font['SubFamilyIndex'] = subfamily.partition('_')
 
 		# Okay, font is now defined fully based upon the information in Custom.plist, let's remove it.
 		for plist in plistcontents:
@@ -344,20 +345,31 @@ def uninstall(hostname,fonts):
 			del plist['Names'][font['Fullname']]
 
 			subfamilylist = plist['TraitMappings'][font['Family']].keys()
-			subfamilylist = filter(lambda x: x.find(font['SubFamily']+'_') == 0, subfamilylist)
+			subfamilylist = filter(lambda x: x.find(font['RootSubFamily']+'_') == 0 or x == font['RootSubFamily'], subfamilylist)
 
 			if len(plist['TraitMappings'][font['Family']]) == 1:
 				# We have only one subfamily in this font['Family']. Remove the whole family.
 				del plist['TraitMappings'][font['Family']]
-			elif len(subfamilylist) > 0:
+			elif len(subfamilylist) > 1:
 				# We have duplicate subfamilies in this font['Family']
-				# TODO: Smartly collapse numeric indices on the duplicate SubFamily types.
-				print 'Special case!'
+
+				# We're still going to delete the specified font SubFamily.
+				del plist['TraitMappings'][font['Family']][font['SubFamily']]
+
+				# In case this happens to be the 0th index.
+				if font['SubFamilyIndex'] == '':
+					font['SubFamilyIndex'] = 0
+
+				# But now we have to smartly collapse numeric indices on the duplicate SubFamily types.
+				for i in range(font['SubFamilyIndex'],len(subfamilylist)-1):
+					plist['TraitMappings'][font['Family']][font['RootSubFamily']+('', '_'+i)[i!=0]] = plist['TraitMappings'][font['Family']][font['RootSubFamily']+'_'+(i+1)]
+
+				# And delete the top of the range.
+				del plist['TraitMappings'][font['Family']][font['RootSubFamily']+'_'+len(subfamilylist)-1]
+
 			else:
 				# No duplicates, and there are still others in the family.
 				del plist['TraitMappings'][font['Family']][font['SubFamily']]
-
-			print plist
 
 		# Remove the font from the phone.
 		print 'Remove font {Location} from phone.'.format(**font)
