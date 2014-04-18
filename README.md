@@ -1,5 +1,9 @@
 # iosfont v0.1.1
 
+**DEPRECATED:** Use [AnyFont](https://itunes.apple.com/us/app/anyfont/id821560738?mt=8) instead.
+
+------
+
 iosfont is a script designed to make it easy to install and uninstall fonts on iOS devices. These fonts can then be used in iOS applications like Apple's Pages. It is my hope that making it easier to 
 
 ## WARNING!
