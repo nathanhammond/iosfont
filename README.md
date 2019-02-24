@@ -63,13 +63,6 @@ Returns the version of the iosfont script you are running.
   - http://www.typophile.com/node/81351
   - http://jessenoller.com/2009/02/05/ssh-programming-with-paramiko-completely-different/
 
-## Support development of this library!
-The time I have spent working on this library is non-trivial. However, instead of asking for donations, it seems a good fit to have referral links to places where you can buy fonts. You can support my development of this library by using these referral links when you purchase fonts or webfont services:
-
-- [Fonts.com](http://www.kqzyfj.com/click-5625191-5765012 "Fonts.com referral link.")<img src="http://www.tqlkg.com/image-5625191-5765012" width="1" height="1" border="0"/>
-- [ITCFonts.com](http://www.kqzyfj.com/click-5625191-5529320 "ITCFonts.com referral link.")<img src="http://www.tqlkg.com/image-5625191-5529320" width="1" height="1" border="0"/>
-- [Linotype.com](http://www.kqzyfj.com/click-5625191-10532874 "Linotype.com referral link.")<img src="http://www.tqlkg.com/image-5625191-10532874" width="1" height="1" border="0"/>
-
 ## MIT License
 Copyright (c) 2012 Nathan Hammond
 
